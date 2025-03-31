@@ -1,10 +1,13 @@
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
-const routes = require("./routes/index"); // Upewnij się, że ścieżka jest poprawna
+const path = require("path"); // ← DODAJ TO
+const routes = require("./routes/index");
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Middleware do parsowania JSON
 app.use(express.json());

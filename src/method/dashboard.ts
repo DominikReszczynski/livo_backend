@@ -1,68 +1,44 @@
 import mongoose from "mongoose";
-import { CohereClientV2 } from "cohere-ai";
-import Expanse from "../models/expanse";
-const cohere = new CohereClientV2({
-  token: "lvFN1NxrOnhFyleag55FMRqiaHQYVvZsQylwqDZn",
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+
+const uploadDir = "./uploads";
+
+// Utwórz folder, jeśli nie istnieje
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+  destination: function (_req, _file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (_req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
 });
-var message: string =
-  "Analyze the following list of expenses and provide a short (maximum 10 sentences) response suggesting practical ways to optimize and reduce spending. Focus on identifying categories or specific areas where savings are possible, and propose actionable steps to cut costs while maintaining essential needs. Here is the list of expenses: ";
 
+const upload = multer({ storage: storage });
 const dasboardFunctions = {
-  async chatWithCohere(req: any, res: any) {
-    console.log(req.body.userID);
+  uploadMiddleware: upload.single("image"),
 
+  async handleImageUpload(req: any, res: any) {
     try {
-      // Walidacja userID
-      const authorId = new mongoose.Types.ObjectId(req.body.userID);
-
-      // Pobranie wydatków użytkownika
-      const expenses = await Expanse.find({ authorId: authorId });
-
-      if (!expenses || expenses.length === 0) {
-        return res.status(404).send({
-          success: false,
-          message: "No expenses found for the given user.",
-        });
+      if (!req.file) {
+        return res
+          .status(400)
+          .send({ success: false, message: "Brak przesłanego pliku." });
       }
 
-      // Tworzenie wiadomości na podstawie wydatków
-      const message = `Analyze the following list of expenses and provide a short response suggesting practical ways to optimize and reduce spending. Focus on identifying categories or specific areas where savings are possible, and propose actionable steps to cut costs while maintaining essential needs. Here is the list of expenses: ${JSON.stringify(
-        expenses
-      )}`;
+      console.log("Plik przesłany:", req.file.filename);
 
-      console.log("Message sent to Cohere API:", message);
-
-      // Wywołanie Cohere API
-      const response = await cohere.chat({
-        model: "command-r-plus",
-        messages: [
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-      });
-
-      if (response?.message?.content) {
-        const responseMessage = response.message.content;
-        console.log("Response from Cohere:", responseMessage);
-
-        return res.status(200).send({
-          success: true,
-          text: responseMessage,
-        });
-      } else {
-        return res.status(500).send({
-          success: false,
-          message: "Cohere API did not return a valid response.",
-        });
-      }
+      return res
+        .status(200)
+        .send({ success: true, filename: req.file.filename });
     } catch (error) {
-      console.error("Error communicating with Cohere API:", error);
-      return res.status(500).send({
-        success: false,
-        message: "An error occurred while processing your request.",
-      });
+      console.error("Błąd podczas przesyłania pliku:", error);
+      return res.status(500).send({ success: false, message: "Błąd serwera." });
     }
   },
 };
