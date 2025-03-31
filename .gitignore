@@ -1,0 +1,15 @@
+# Ignoruj katalog node_modules
+node_modules/
+
+# Ignoruj plik z kluczami środowiskowymi
+.env
+
+# Ignoruj pliki logów
+*.log
+
+# Ignoruj katalog build (jeśli tworzysz pliki kompilacji)
+build/
+
+# Ignoruj tymczasowe pliki systemowe
+.DS_Store
+Thumbs.db
