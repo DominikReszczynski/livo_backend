@@ -9,6 +9,7 @@ node_modules/
 
 # Ignoruj katalog build (jeśli tworzysz pliki kompilacji)
 build/
+uploads/
 
 # Ignoruj tymczasowe pliki systemowe
 .DS_Store

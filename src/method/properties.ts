@@ -1,238 +1,78 @@
+import { Request, Response } from "express";
+import Property from "../models/properties";
 import mongoose from "mongoose";
-import Expanse, { IExpanse } from "../models/expanse";
-import moment from "moment";
-import dayjs from "dayjs";
 
-var expansesFunctions = {
-  async addExpanse(req: any, res: any) {
-    console.log("zaczynam dodawać");
-    try {
-      let expanseId = new mongoose.Types.ObjectId();
-      let newExpanse = new Expanse(req.body.expanse);
-      newExpanse._id = expanseId;
-      let authorId = newExpanse.authorId;
-      newExpanse.authorId = new mongoose.Types.ObjectId(authorId);
+// Multer
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
-      await newExpanse.save();
-      newExpanse = newExpanse.toObject();
-      return res.status(200).send({ success: true, expanse: newExpanse });
-    } catch (e) {
-      console.log(e);
-      return res.status(500).send({ success: false });
-    }
+// Konfiguracja uploadu
+const uploadDir = "./uploads";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
   },
+  filename: (_req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.round(
+      Math.random() * 1e9
+    )}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
 
-  async removeExpanse(req: any, res: any) {
-    console.log("zaczynam removeExpanse");
-    console.log(req.body.expanseId);
+export const uploadSingle = multer({ storage }).single("image");
+
+export const propertiesFunctions = {
+  async addProperty(req: Request, res: Response) {
     try {
-      const expanseId = new mongoose.Types.ObjectId(req.body.expanseId);
-      const result = await Expanse.findByIdAndRemove(expanseId);
+      const propertyData = JSON.parse(req.body.property);
+      const imageFilename = req.file?.filename;
 
-      if (!result) {
-        return res
-          .status(404)
-          .send({ success: false, message: "Expanse not found" });
+      if (imageFilename) {
+        propertyData.mainImage = imageFilename;
       }
 
-      return res.status(200).send({ success: true });
-    } catch (e) {
-      console.log(e);
-      return res.status(500).send({ success: false });
-    }
-  },
+      propertyData.ownerId = new mongoose.Types.ObjectId(propertyData.ownerId);
 
-  async getAllExpansesByAuthor(req: any, res: any) {
-    console.log(`Pobieram wydatki dla autora o ID ${req.body.authorId}`);
-    try {
-      const authorId = new mongoose.Types.ObjectId(req.body.authorId);
+      const newProperty = new Property(propertyData);
+      await newProperty.save();
 
-      // Pobieranie wydatków z bazy
-      const expanses = await Expanse.find({ authorId: authorId });
-
-      return res.status(200).send({ success: true, expanses });
-    } catch (e) {
-      console.log(e);
-      return res.status(500).send({ success: false });
-    }
-  },
-
-  async getAllExpansesByAuthorExcludingCurrentMonth(req: any, res: any) {
-    console.log(`Pobieram wydatki dla autora o ID ${req.body.authorId}`);
-    try {
-      const authorId = new mongoose.Types.ObjectId(req.body.authorId);
-
-      const now = moment();
-      const startOfMonth = now.startOf("month").toDate();
-      const endOfMonth = now.endOf("month").toDate();
-
-      const expanses = await Expanse.find({
-        authorId: authorId,
-        $or: [
-          { createdAt: { $lt: startOfMonth } },
-          { createdAt: { $gt: endOfMonth } },
-        ],
-      });
-
-      return res.status(200).send({ success: true, expanses });
-    } catch (e) {
-      console.error("Błąd podczas pobierania wydatków:", e);
-      return res.status(500).send({ success: false });
-    }
-  },
-
-  async getExpansesGroupedByMonth(req: any, res: any) {
-    console.log(
-      `Pobieram i grupuję wydatki dla autora o ID ${req.body.authorId} bez wydatków z bieżącego miesiąca`
-    );
-    try {
-      const authorId = new mongoose.Types.ObjectId(req.body.authorId);
-
-      const expanses = await Expanse.find({ authorId: authorId });
-
-      const currentYear = moment().year();
-      const currentMonth = moment().month();
-
-      const filteredExpanses = expanses.filter((expanse) => {
-        const createdAt = moment(expanse.createdAt);
-        return !(
-          createdAt.year() === currentYear && createdAt.month() === currentMonth
-        );
-      });
-
-      const groupedExpanses = filteredExpanses.reduce<
-        Record<string, IExpanse[]>
-      >((acc, expanse) => {
-        const createdAt = moment(expanse.createdAt);
-        const yearMonth = createdAt.format("YYYY-MM");
-
-        if (!acc[yearMonth]) {
-          acc[yearMonth] = [];
-        }
-        acc[yearMonth].push(expanse);
-
-        return acc;
-      }, {});
-
-      const groupedArray = Object.entries(groupedExpanses).map(
-        ([key, values]) => ({
-          monthYear: key,
-          expanses: values,
-        })
-      );
-
-      console.log(groupedArray);
-      return res
-        .status(200)
-        .send({ success: true, groupedExpanses: groupedArray });
-    } catch (e) {
-      console.error("Błąd podczas grupowania wydatków:", e);
-      return res.status(500).send({ success: false });
-    }
-  },
-
-  async getExpansesByAuthorForCurrentMonth(req: any, res: any) {
-    console.log(`Pobieram wydatki dla autora o ID ${req.body.authorId}`);
-
-    try {
-      const authorId = new mongoose.Types.ObjectId(req.body.authorId);
-
-      const now = moment();
-      const startOfMonth = now.startOf("month").toDate();
-      const endOfMonth = now.endOf("month").toDate();
-
-      const expanses = await Expanse.find({
-        authorId: authorId,
-        createdAt: {
-          $gte: startOfMonth,
-          $lte: endOfMonth,
-        },
-      });
-
-      if (expanses.length > 0) {
-        return res.status(200).send({ success: true, expanses });
-      } else {
-        return res.status(404).send({
-          success: true,
-          message: "No expenses found for the current month.",
-        });
-      }
-    } catch (e) {
-      console.error("Błąd podczas pobierania wydatków:", e);
-      return res.status(500).send({ success: false });
-    }
-  },
-
-  async getExpensesGroupedByCategory(req: any, res: any): Promise<Response> {
-    console.log("Pobieram wydatki dla użytkownika i grupuję według kategorii");
-
-    try {
-      const { authorId, monthYear }: { authorId: string; monthYear: string } =
-        req.body;
-
-      if (!authorId || !monthYear) {
-        return res.status(400).send({
-          success: false,
-          message: "Brakuje wymaganych parametrów (authorId, monthYear).",
-        });
-      }
-
-      const [year, month] = monthYear.split("-");
-      if (!year || !month || isNaN(Number(year)) || isNaN(Number(month))) {
-        return res.status(400).send({
-          success: false,
-          message: "Nieprawidłowy format miesiąca. Oczekiwany format: YYYY-MM.",
-        });
-      }
-
-      const startOfMonth = dayjs(`${year}-${month}-01`)
-        .startOf("month")
-        .toDate();
-      const endOfMonth = dayjs(`${year}-${month}-01`).endOf("month").toDate();
-
-      if (isNaN(startOfMonth.getTime()) || isNaN(endOfMonth.getTime())) {
-        return res.status(400).send({
-          success: false,
-          message: "Nieprawidłowy zakres dat.",
-        });
-      }
-
-      const authorObjectId = new mongoose.Types.ObjectId(authorId);
-
-      const expenses: IExpanse[] = await Expanse.find({
-        authorId: authorObjectId,
-        createdAt: {
-          $gte: startOfMonth,
-          $lt: endOfMonth,
-        },
-      });
-
-      const groupedByCategory: Record<string, number> = expenses.reduce(
-        (acc: Record<string, number>, expanse: IExpanse) => {
-          const category = expanse.category;
-          const amount = expanse.amount;
-
-          if (!acc[category]) {
-            acc[category] = 0;
-          }
-
-          acc[category] += amount;
-          return acc;
-        },
-        {}
-      );
-
-      console.log(groupedByCategory);
-
-      return res.status(200).send({ success: true, groupedByCategory });
+      res.status(200).send({ success: true, property: newProperty });
     } catch (error) {
-      console.error("Błąd podczas grupowania wydatków:", error);
-      return res.status(500).send({
+      console.error("Błąd podczas dodawania nieruchomości:", error);
+      res.status(500).send({ success: false, message: "Błąd serwera" });
+    }
+  },
+
+  async getAllPropertiesByOwner(req: Request, res: Response): Promise<void> {
+    try {
+      // console.log("Pobieranie mieszkań właściciela");
+      console.log("req.body", req.body);
+      console.log("req.body.userID", req.body.userID);
+      const ownerId = req.body.userID;
+
+      if (!ownerId) {
+        res.status(400).send({
+          success: false,
+          message: "Brakuje ownerId w żądaniu.",
+        });
+      }
+
+      const ownerObjectId = new mongoose.Types.ObjectId(ownerId);
+      const properties = await Property.find({ ownerId: ownerObjectId });
+
+      res.status(200).send({ success: true, properties });
+    } catch (error) {
+      console.error("Błąd podczas pobierania mieszkań właściciela:", error);
+      res.status(500).send({
         success: false,
-        message: "Wystąpił błąd na serwerze.",
+        message: "Wystąpił błąd po stronie serwera.",
       });
     }
   },
 };
-
-module.exports = expansesFunctions;
