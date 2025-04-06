@@ -75,4 +75,135 @@ export const propertiesFunctions = {
       });
     }
   },
+  async setPin(req: Request, res: Response): Promise<void> {
+    try {
+      const propertyID = req.body.propertyID;
+      const pin = req.body.pin;
+
+      if (!propertyID || !pin) {
+        res.status(400).send({
+          success: false,
+          message: "Brakuje danych w żądaniu.",
+        });
+      }
+
+      const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
+      const property = await Property.findById(propertyObjectId);
+
+      if (!property) {
+        res.status(404).send({
+          success: false,
+          message: "Nie znaleziono nieruchomości o podanym ID.",
+        });
+      } else {
+        property.pin = pin;
+        await property.save();
+      }
+
+      res.status(200).send({ success: true });
+    } catch (error) {
+      console.error("Błąd podczas pobierania mieszkań właściciela:", error);
+      res.status(500).send({
+        success: false,
+        message: "Wystąpił błąd po stronie serwera.",
+      });
+    }
+  },
+  async removePin(req: Request, res: Response): Promise<void> {
+    try {
+      const propertyID = req.body.propertyID;
+
+      if (!propertyID) {
+        res.status(400).send({
+          success: false,
+          message: "Brakuje propertyID w żądaniu.",
+        });
+      }
+
+      const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
+      const property = await Property.findById(propertyObjectId);
+
+      if (!property) {
+        res.status(404).send({
+          success: false,
+          message: "Nie znaleziono nieruchomości o podanym ID.",
+        });
+      } else {
+        property.pin = undefined;
+        await property.save();
+      }
+
+      res.status(200).send({ success: true });
+    } catch (error) {
+      console.error("Błąd podczas pobierania mieszkań właściciela:", error);
+      res.status(500).send({
+        success: false,
+        message: "Wystąpił błąd po stronie serwera.",
+      });
+    }
+  },
+  async addTenantToProperty(req: Request, res: Response): Promise<void> {
+    try {
+      const propertyID = req.body.propertyID;
+      const tenantID = req.body.tenantID;
+
+      if (!propertyID || !tenantID) {
+        res.status(400).send({
+          success: false,
+          message: "Brakuje danych w żądaniu.",
+        });
+      }
+
+      const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
+      const property = await Property.findById(propertyObjectId);
+
+      if (!property) {
+        res.status(404).send({
+          success: false,
+          message: "Nie znaleziono nieruchomości o podanym ID.",
+        });
+      } else {
+        if (property!.ownerId == tenantID) {
+          res.status(404).send({
+            success: false,
+            message: "Id właściciela i najemcy są takie same.",
+          });
+        } else {
+          property.tenantId = new mongoose.Types.ObjectId(tenantID);
+          await property.save();
+        }
+      }
+
+      res.status(200).send({ success: true, property: property });
+    } catch (error) {
+      console.error("Błąd podczas dodawania najemcy do nieruchomości:", error);
+      res.status(500).send({
+        success: false,
+        message: "Wystąpił błąd po stronie serwera.",
+      });
+    }
+  },
+  async getAllPropertiesByTenant(req: Request, res: Response): Promise<void> {
+    try {
+      const tenantId = req.body.userID;
+
+      if (!tenantId) {
+        res.status(400).send({
+          success: false,
+          message: "Brakuje tenantId w żądaniu.",
+        });
+      }
+
+      const ownerObjectId = new mongoose.Types.ObjectId(tenantId);
+      const properties = await Property.find({ tenantId: ownerObjectId });
+
+      res.status(200).send({ success: true, properties });
+    } catch (error) {
+      console.error("Błąd podczas pobierania mieszkań właściciela:", error);
+      res.status(500).send({
+        success: false,
+        message: "Wystąpił błąd po stronie serwera.",
+      });
+    }
+  },
 };

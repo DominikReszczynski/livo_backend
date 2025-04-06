@@ -36,9 +36,23 @@ router.post(
   uploadSingle,
   propertiesFunctions.addProperty
 );
+
 router.post(
   "/property/getAllByOwner",
   propertiesFunctions.getAllPropertiesByOwner
+);
+router.post("/property/setPin", propertiesFunctions.setPin);
+
+router.post("/property/removePin", propertiesFunctions.removePin);
+
+router.post(
+  "/property/addTenantToProperty",
+  propertiesFunctions.addTenantToProperty
+);
+
+router.post(
+  "/property/getAllByTenant",
+  propertiesFunctions.getAllPropertiesByTenant
 );
 
 module.exports = router;

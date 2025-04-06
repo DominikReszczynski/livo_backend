@@ -19,6 +19,7 @@ export interface IProperty extends Document {
   rentalContractFilename?: string;
   notes?: string;
   mainImage?: string;
+  pin?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -46,6 +47,7 @@ const propertySchema: Schema = new mongoose.Schema(
       type: String,
       required: false,
     },
+    pin: { type: String, required: false },
   },
   { timestamps: true }
 );
