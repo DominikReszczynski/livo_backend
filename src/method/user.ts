@@ -1,53 +1,84 @@
-import mongoose from "mongoose";
-import User, { IUser } from "../models/user";
-import moment from "moment";
-import dayjs from "dayjs";
+import User from "../models/user";
+import bcrypt from "bcrypt";
+import {
+  signAccessToken,
+  signRefreshToken,
+} from "../services/token";
 
-var userFunctions = {
+const userFunctions = {
+  // 🧾 Rejestracja
   async registration(req: any, res: any) {
-    console.log("zaczynam dodawać");
-    console.log(req.body);
+    console.log("➡️ Rejestracja użytkownika:", req.body);
     try {
-      let newUser = new User(req.body);
+      const { email, username, password } = req.body;
 
+      // Sprawdź, czy email już istnieje
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res
+          .status(400)
+          .send({ success: false, message: "Email already exists" });
+      }
+
+      // Hashuj hasło (model też to robi, ale możemy tu jawnie)
+      const hashedPassword = password;
+      //  await bcrypt.hash(password, 10);
+
+      const newUser = new User({ email, username, password: hashedPassword });
       await newUser.save();
-      return res.status(200).send({
-        success: true,
-      });
+
+      return res.status(200).send({ success: true });
     } catch (e) {
-      console.log(e);
+      console.error("❌ Registration error:", e);
       return res.status(500).send({ success: false });
     }
   },
 
+  // 🔐 Logowanie
   async login(req: any, res: any) {
-    console.log("login");
+    console.log("➡️ Login:", req.body);
     try {
-      const email = req.body.email;
-      const password = req.body.password;
-      console.log(email);
-      console.log("All users: ", await User.find({}));
+      const { email, password } = req.body;
 
-      const userData = await User.findOne({ email: email });
-      console.log(userData);
+      // Szukamy użytkownika
+      const userData = await User.findOne({ email });
+      console.log("Found userData:", userData);
       if (!userData) {
         return res
           .status(404)
           .send({ success: false, message: "User not found" });
       }
 
-      if (userData.password !== password) {
+      // Sprawdzamy hasło
+      const isMatch = await bcrypt.compare(password, userData.password);
+      if (!isMatch) {
         return res
           .status(401)
           .send({ success: false, message: "Wrong password" });
       }
 
-      return res.status(200).send({ success: true, user: userData });
+      // Generujemy tokeny JWT
+      const accessToken = signAccessToken(userData);
+      const refreshToken = signRefreshToken(userData);
+
+      // Odpowiedź kompatybilna z frontendem
+      return res.status(200).send({
+        success: true,
+        user: {
+          email: userData.email,
+          username: userData.username,
+          _id: userData._id,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+        },
+      });
     } catch (e) {
-      console.error("Login error:", e);
+      console.error("❌ Login error:", e);
       return res.status(500).send({ success: false });
     }
   },
 };
 
-module.exports = userFunctions;
+export default userFunctions;

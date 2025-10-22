@@ -25,7 +25,7 @@ const storage = multer.diskStorage({
   },
 });
 
-export const uploadSingle = multer({ storage }).single("image");
+export const uploadSingleImage = multer({ storage }).single("image");
 
 export const propertiesFunctions = {
   async addProperty(req: Request, res: Response) {

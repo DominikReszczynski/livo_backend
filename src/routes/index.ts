@@ -1,20 +1,21 @@
 import express from "express";
-import { uploadSingle, propertiesFunctions } from "./../method/properties";
+import { uploadSingleImage, propertiesFunctions } from "./../method/properties";
 const router = express.Router();
 const dashboard = require("./../method/dashboard");
-const user = require("./../method/user");
 const image = require("./../method/image");
+import userFunctions from "../method/user";
+import { authMiddleware } from "../middleware/auth";
 
-// ! ########################################
-// ! ############ - USER - ##############
-// ! ########################################
+//  ########################################
+//  ############ - USER - ##############
+//  ########################################
 
-router.post("/user/login", user.login);
-router.post("/user/registration", user.registration);
+router.post("/user/login", userFunctions.login);
+router.post("/user/registration", userFunctions.registration);
 
-// ! ########################################
-// ! ############ - IMAGE - ##############
-// ! ########################################
+//  ########################################
+//  ############ - IMAGE - ##############
+//  ########################################
 
 router.post(
   "/upload/image",
@@ -28,12 +29,14 @@ router.post(
   image.handleMultipleImageUpload
 );
 
-// ! ########################################
-// ! ############ - PROPERTY - ##############
-// ! ########################################
+// ########################################
+//  ############ - PROPERTY - ##############
+//  ########################################
+
 router.post(
   "/property/addProperty",
-  uploadSingle,
+  authMiddleware,
+  uploadSingleImage,
   propertiesFunctions.addProperty
 );
 

@@ -1,0 +1,49 @@
+### USER
+1. POST /user/login
+   - Opis: Logowanie użytkownika.
+   - Obsługiwana funkcja: user.login
+
+2. POST /user/registration
+   - Opis: Rejestracja nowego użytkownika.
+   - Obsługiwana funkcja: user.registration
+
+---
+
+### IMAGE
+3. POST /upload/image
+   - Opis: Przesyłanie pojedynczego obrazu.
+   - Middleware: dashboard.uploadMiddleware
+   - Obsługiwana funkcja: dashboard.handleImageUpload
+
+4. POST /upload/images
+   - Opis: Przesyłanie wielu obrazów.
+   - Middleware: image.uploadMultipleMiddleware
+   - Obsługiwana funkcja: image.handleMultipleImageUpload
+
+
+
+### PROPERTY
+5. POST /property/addProperty
+   - Opis: Dodanie nowej nieruchomości.
+   - Middleware: uploadSingle
+   - Obsługiwana funkcja: propertiesFunctions.addProperty
+
+6. POST /property/getAllByOwner
+   - Opis: Pobranie wszystkich nieruchomości właściciela.
+   - Obsługiwana funkcja: propertiesFunctions.getAllPropertiesByOwner
+
+7. POST /property/setPin
+   - Opis: Ustawienie kodu PIN dla nieruchomości.
+   - Obsługiwana funkcja: propertiesFunctions.setPin
+
+8. POST /property/removePin
+   - Opis: Usunięcie kodu PIN z nieruchomości.
+   - Obsługiwana funkcja: propertiesFunctions.removePin
+
+9. POST /property/addTenantToProperty
+   - Opis: Dodanie najemcy do nieruchomości.
+   - Obsługiwana funkcja: propertiesFunctions.addTenantToProperty
+
+10. POST /property/getAllByTenant
+    - Opis: Pobranie wszystkich nieruchomości wynajmowanych przez najemcę.
+    - Obsługiwana funkcja: propertiesFunctions.getAllPropertiesByTenant
