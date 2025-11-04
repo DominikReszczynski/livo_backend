@@ -3,7 +3,9 @@ import { uploadSingleImage, propertiesFunctions } from "./../method/properties";
 const router = express.Router();
 const dashboard = require("./../method/dashboard");
 const image = require("./../method/image");
+const defect = require("./../method/defect");
 import userFunctions from "../method/user";
+import defectsFunctions from "../method/defect";
 import { authMiddleware } from "../middleware/auth";
 
 //  ########################################
@@ -29,7 +31,7 @@ router.post(
   image.handleMultipleImageUpload
 );
 
-// ########################################
+//  ########################################
 //  ############ - PROPERTY - ##############
 //  ########################################
 
@@ -57,5 +59,13 @@ router.post(
   "/property/getAllByTenant",
   propertiesFunctions.getAllPropertiesByTenant
 );
+
+//  ########################################
+//  ############# - DEFECT - ###############
+//  ########################################
+
+router.post("/defect/addDefect", defectsFunctions.addDefect);
+
+router.post("/defect/getAllDefects", defectsFunctions.getAllDefects);
 
 module.exports = router;
