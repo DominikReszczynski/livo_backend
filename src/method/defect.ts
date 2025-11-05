@@ -47,6 +47,34 @@ const defectsFunctions = {
       return res.status(500).send({ success: false });
     }
   },
+
+  // 🧱 Zmieniamy status defektu
+async updateDefectStatus(req: any, res: any) {
+  try {
+    const { defectId, status } = req.body;
+
+    if (!defectId || !status) {
+      return res.status(400).send({ success: false, message: "Brak danych." });
+    }
+
+    const updatedDefect = await Defect.findByIdAndUpdate(
+      defectId,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedDefect) {
+      return res
+        .status(404)
+        .send({ success: false, message: "Defekt nie znaleziony." });
+    }
+
+    return res.status(200).send({ success: true, defect: updatedDefect });
+  } catch (e) {
+    console.error("❌ Błąd aktualizacji statusu defektu:", e);
+    return res.status(500).send({ success: false });
+  }
+},
 };
 
 export default defectsFunctions;

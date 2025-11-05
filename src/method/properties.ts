@@ -143,46 +143,62 @@ export const propertiesFunctions = {
     }
   },
   async addTenantToProperty(req: Request, res: Response): Promise<void> {
-    try {
-      const propertyID = req.body.propertyID;
-      const tenantID = req.body.tenantID;
+  try {
+    const { propertyID, tenantID } = req.body;
 
-      if (!propertyID || !tenantID) {
-        res.status(400).send({
-          success: false,
-          message: "Brakuje danych w żądaniu.",
-        });
-      }
-
-      const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
-      const property = await Property.findById(propertyObjectId);
-
-      if (!property) {
-        res.status(404).send({
-          success: false,
-          message: "Nie znaleziono nieruchomości o podanym ID.",
-        });
-      } else {
-        if (property!.ownerId == tenantID) {
-          res.status(404).send({
-            success: false,
-            message: "Id właściciela i najemcy są takie same.",
-          });
-        } else {
-          property.tenantId = new mongoose.Types.ObjectId(tenantID);
-          await property.save();
-        }
-      }
-
-      res.status(200).send({ success: true, property: property });
-    } catch (error) {
-      console.error("Błąd podczas dodawania najemcy do nieruchomości:", error);
-      res.status(500).send({
+    // 🔹 Walidacja danych wejściowych
+    if (!propertyID || !tenantID) {
+      res.status(400).send({
         success: false,
-        message: "Wystąpił błąd po stronie serwera.",
+        message: "Brakuje danych w żądaniu.",
       });
+      return;
     }
-  },
+
+    const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
+    const property = await Property.findById(propertyObjectId);
+
+    // 🔹 Sprawdź, czy mieszkanie istnieje
+    if (!property) {
+      res.status(404).send({
+        success: false,
+        message: "Nie znaleziono nieruchomości o podanym ID.",
+      });
+      return;
+    }
+
+    // 🔹 Właściciel nie może być swoim własnym najemcą
+    if (property.ownerId.toString() === tenantID) {
+      res.status(400).send({
+        success: false,
+        message: "Id właściciela i najemcy są takie same.",
+      });
+      return;
+    }
+
+    // 🔹 Ustaw najemcę
+    property.tenantId = new mongoose.Types.ObjectId(tenantID);
+
+    // 🔹 Zmień status na "wynajęte"
+    property.status = "wynajęte";
+
+    // 🔹 Zapisz zmiany
+    await property.save();
+
+    res.status(200).send({
+      success: true,
+      message: "Najemca został dodany, status zmieniono na 'wynajęte'.",
+      property: property,
+    });
+  } catch (error) {
+    console.error("❌ Błąd podczas dodawania najemcy do nieruchomości:", error);
+    res.status(500).send({
+      success: false,
+      message: "Wystąpił błąd po stronie serwera.",
+    });
+  }
+},
+
   async getAllPropertiesByTenant(req: Request, res: Response): Promise<void> {
     try {
       const tenantId = req.body.userID;

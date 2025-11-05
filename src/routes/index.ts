@@ -68,4 +68,6 @@ router.post("/defect/addDefect", defectsFunctions.addDefect);
 
 router.post("/defect/getAllDefects", defectsFunctions.getAllDefects);
 
+router.post("/defect/updateStatus", defectsFunctions.updateDefectStatus);
+
 module.exports = router;
