@@ -60,6 +60,11 @@ router.post(
   propertiesFunctions.getAllPropertiesByTenant
 );
 
+router.post(
+  "/property/addRentalImages",
+  propertiesFunctions.addRentalImages
+);
+
 //  ########################################
 //  ############# - DEFECT - ###############
 //  ########################################

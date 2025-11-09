@@ -40,7 +40,7 @@ const propertySchema: Schema = new mongoose.Schema(
     paymentCycle: { type: String, required: true },
     rentalStart: { type: Date },
     rentalEnd: { type: Date },
-    imageFilenames: [{ type: String }],
+    imageFilenames: [{ type: String, default: [] }],
     rentalContractFilename: { type: String },
     notes: { type: String },
     mainImage: {

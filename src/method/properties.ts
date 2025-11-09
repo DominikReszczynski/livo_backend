@@ -222,4 +222,60 @@ export const propertiesFunctions = {
       });
     }
   },
+
+  async addRentalImages(req: Request, res: Response): Promise<void> {
+  try {
+    const { propertyId, propertyID, imageFilenames } = req.body ?? {};
+    const id = propertyId ?? propertyID;
+
+    if (!id) {
+      res.status(400).send({ success: false, message: "Brakuje propertyId w żądaniu." });
+      return;
+    }
+    if (!Array.isArray(imageFilenames) || imageFilenames.length === 0) {
+      res.status(400).send({ success: false, message: "imageFilenames musi być niepustą tablicą." });
+      return;
+    }
+    if (!mongoose.isValidObjectId(id)) {
+      res.status(400).send({ success: false, message: "Nieprawidłowe ID nieruchomości." });
+      return;
+    }
+
+    // normalizacja do samych nazw plików (spójnie z mainImage)
+    const normalized: string[] = imageFilenames
+      .filter((x: unknown) => typeof x === "string" && (x as string).trim().length > 0)
+      .map((x: string) => path.basename(x));
+
+    if (normalized.length === 0) {
+      res.status(400).send({ success: false, message: "Brak poprawnych nazw plików." });
+      return;
+    }
+
+    const property = await Property.findById(id);
+    if (!property) {
+      res.status(404).send({ success: false, message: "Nie znaleziono nieruchomości o podanym ID." });
+      return;
+    }
+
+    if (!Array.isArray(property.imageFilenames)) {
+      property.imageFilenames = [];
+    }
+
+    // idempotentnie (unikamy duplikatów)
+    const set = new Set<string>(property.imageFilenames);
+    for (const f of normalized) set.add(f);
+    property.imageFilenames = [...set];
+
+    await property.save();
+
+    res.status(200).send({
+      success: true,
+      filenames: property.imageFilenames,
+      property,
+    });
+  } catch (error) {
+    console.error("❌ Błąd podczas dodawania zdjęć:", error);
+    res.status(500).send({ success: false, message: "Wystąpił błąd po stronie serwera." });
+  }
+}
 };
