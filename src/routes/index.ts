@@ -14,6 +14,7 @@ import { authMiddleware } from "../middleware/auth";
 
 router.post("/user/login", userFunctions.login);
 router.post("/user/registration", userFunctions.registration);
+router.post("/user/getById", userFunctions.getById);
 
 //  ########################################
 //  ############ - IMAGE - ##############
@@ -74,5 +75,7 @@ router.post("/defect/addDefect", defectsFunctions.addDefect);
 router.post("/defect/getAllDefects", defectsFunctions.getAllDefects);
 
 router.post("/defect/updateStatus", defectsFunctions.updateDefectStatus);
+
+router.post("/defect/listByUser", defectsFunctions.listByUser);
 
 module.exports = router;

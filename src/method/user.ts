@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/user";
 import bcrypt from "bcrypt";
 import {
@@ -6,6 +7,27 @@ import {
 } from "../services/token";
 
 const userFunctions = {
+async getById(req: any, res: any): Promise<void> {
+    try {
+      const id = req.body.id;
+      if (!mongoose.isValidObjectId(id)) {
+        res.status(400).send({ success: false, message: "Nieprawidłowe ID." });
+        return;
+      }
+
+      const user = await User.findById(id).select("_id email username phone");
+      if (!user) {
+        res.status(404).send({ success: false, message: "Użytkownik nie istnieje." });
+        return;
+      }
+
+      res.status(200).send({ success: true, user });
+    } catch (e) {
+      console.error("❌ getById error:", e);
+      res.status(500).send({ success: false, message: "Błąd serwera." });
+    }
+  },
+
   // 🧾 Rejestracja
   async registration(req: any, res: any) {
     console.log("➡️ Rejestracja użytkownika:", req.body);
@@ -79,6 +101,7 @@ const userFunctions = {
       return res.status(500).send({ success: false });
     }
   },
+  
 };
 
 export default userFunctions;

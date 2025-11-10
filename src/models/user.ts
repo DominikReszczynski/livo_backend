@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema<IUser>(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     username: { type: String, required: true },
-    password: { type: String, required: true, minlength: 6 },
+    password: { type: String, required: true, minlength: 6,select: false },
   },
   { timestamps: true }
 );

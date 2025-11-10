@@ -1,3 +1,5 @@
+import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
+import mongoose from "mongoose";
 import Defect from "../models/defect";
 import Property from "../models/properties";
 
@@ -75,6 +77,55 @@ async updateDefectStatus(req: any, res: any) {
     return res.status(500).send({ success: false });
   }
 },
+async listByUser(req: ExpressRequest, res: ExpressResponse): Promise<void> {
+    try {
+      const userId = (req.params.userId || req.query.userId || req.body.userId || "").toString();
+      if (!mongoose.isValidObjectId(userId)) {
+        res.status(400).send({ success: false, message: "Nieprawidłowe userId." });
+        return;
+      }
+      const uid = new mongoose.Types.ObjectId(userId);
+
+      const defects = await Defect.aggregate([
+        {
+          $lookup: {
+            from: "properties",
+            localField: "propertyId",
+            foreignField: "_id",
+            as: "property",
+          },
+        },
+        { $unwind: "$property" },
+        {
+          $match: {
+            $or: [{ "property.ownerId": uid }, { "property.tenantId": uid }],
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            status: 1,
+            imageFilenames: 1,
+            dueDate: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            propertyId: 1,
+            propertyName: "$property.name",
+            propertyLocation: "$property.location",
+          },
+        },
+        { $sort: { updatedAt: -1 } },
+      ]);
+
+      res.status(200).send({ success: true, defects });
+    } catch (e) {
+      console.error("❌ listByUser:", e);
+      res.status(500).send({ success: false, message: "Błąd serwera." });
+    }
+  },
+
 };
 
 export default defectsFunctions;
