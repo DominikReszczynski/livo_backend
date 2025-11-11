@@ -28,80 +28,85 @@ async getById(req: any, res: any): Promise<void> {
     }
   },
 
-  // 🧾 Rejestracja
-  async registration(req: any, res: any) {
-    console.log("➡️ Rejestracja użytkownika:", req.body);
-    try {
-      const { email, username, password } = req.body;
+// Rejestracja
+async registration(req: any, res: any) {
+  console.log("➡️ Rejestracja użytkownika:", req.body);
+  try {
+    const { email, username, password } = req.body;
 
-      // Sprawdź, czy email już istnieje
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res
-          .status(400)
-          .send({ success: false, message: "Email already exists" });
-      }
-
-      // Hashuj hasło (model też to robi, ale możemy tu jawnie)
-      const hashedPassword = password;
-      //  await bcrypt.hash(password, 10);
-
-      const newUser = new User({ email, username, password: hashedPassword });
-      await newUser.save();
-
-      return res.status(200).send({ success: true });
-    } catch (e) {
-      console.error("❌ Registration error:", e);
-      return res.status(500).send({ success: false });
+    if (!email || !username || !password) {
+      return res.status(400).send({ success: false, message: "Missing email/username/password" });
     }
-  },
 
-  // 🔐 Logowanie
-  async login(req: any, res: any) {
-    console.log("➡️ Login:", req.body);
-    try {
-      const { email, password } = req.body;
-
-      // Szukamy użytkownika
-      const userData = await User.findOne({ email });
-      console.log("Found userData:", userData);
-      if (!userData) {
-        return res
-          .status(404)
-          .send({ success: false, message: "User not found" });
-      }
-
-      // Sprawdzamy hasło
-      const isMatch = await bcrypt.compare(password, userData.password);
-      if (!isMatch) {
-        return res
-          .status(401)
-          .send({ success: false, message: "Wrong password" });
-      }
-
-      // Generujemy tokeny JWT
-      const accessToken = signAccessToken(userData);
-      const refreshToken = signRefreshToken(userData);
-
-      // Odpowiedź kompatybilna z frontendem
-      return res.status(200).send({
-        success: true,
-        user: {
-          email: userData.email,
-          username: userData.username,
-          _id: userData._id,
-        },
-        tokens: {
-          accessToken,
-          refreshToken,
-        },
-      });
-    } catch (e) {
-      console.error("❌ Login error:", e);
-      return res.status(500).send({ success: false });
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+      return res.status(409).send({ success: false, message: "User already exists" });
     }
-  },
-  
+
+    // ZAWSZE hashuj
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({ email, username, password: hashedPassword });
+    await newUser.save();
+
+    return res.status(201).send({
+      success: true,
+      user: { _id: newUser._id, email: newUser.email, username: newUser.username },
+    });
+  } catch (e) {
+    console.error("❌ Registration error:", e);
+    return res.status(500).send({ success: false });
+  }
+},
+
+// Logowanie
+async login(req: any, res: any) {
+  console.log("➡️ Login:", req.body);
+  try {
+    // pozwól logować się przez email LUB username (albo 'login'/'user')
+    const { email, username, login, user, password } = req.body;
+    const identifier = email || username || login || user;
+
+    if (!identifier || !password) {
+      return res.status(400).send({ success: false, message: "Missing identifier or password" });
+    }
+
+    const userData = await User.findOne({
+      $or: [{ email: identifier }, { username: identifier }],
+    });
+    console.log("Found userData:", userData);
+    if (!userData) {
+      return res.status(404).send({ success: false, message: "User not found" });
+    }
+
+    const stored = String(userData.password ?? "");
+    let isMatch = false;
+
+    // jeśli wygląda jak bcrypt -> porównaj bcrytem
+    if (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$")) {
+      isMatch = await bcrypt.compare(password, stored);
+    } else {
+      // tryb „legacy” dla środowiska dev/test (żeby nie walić 500)
+      isMatch = password === stored;
+    }
+
+    if (!isMatch) {
+      return res.status(401).send({ success: false, message: "Wrong password" });
+    }
+
+    const accessToken = signAccessToken(userData);
+    const refreshToken = signRefreshToken(userData);
+
+    return res.status(200).send({
+      success: true,
+      user: { email: userData.email, username: userData.username, _id: userData._id },
+      tokens: { accessToken, refreshToken }, // USTALAMY JEDNOLITY KSZTAŁT
+    });
+  } catch (e) {
+    console.error("❌ Login error:", e);
+    return res.status(500).send({ success: false });
+  }
+}
 };
 
 export default userFunctions;

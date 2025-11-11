@@ -1,7 +1,8 @@
 require("dotenv").config();
+import listEndpoints from 'express-list-endpoints';
 const express = require("express");
 const mongoose = require("mongoose");
-const path = require("path"); // ← DODAJ TO
+const path = require("path");
 const routes = require("./routes/index");
 
 const app = express();
@@ -60,3 +61,6 @@ app.use(routes);
 app.listen(port, () => {
   console.log(`Serwer działa na porcie ${port}`);
 });
+
+console.table(listEndpoints(app));
+app.get('/__routes', (_req:any, res:any) => res.json(listEndpoints(app)));

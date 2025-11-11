@@ -61,6 +61,7 @@ export const propertiesFunctions = {
           success: false,
           message: "Brakuje ownerId w żądaniu.",
         });
+        return;
       }
 
       const ownerObjectId = new mongoose.Types.ObjectId(ownerId);
