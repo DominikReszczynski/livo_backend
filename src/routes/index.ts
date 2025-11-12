@@ -2,11 +2,10 @@ import express from "express";
 import { uploadSingleImage, propertiesFunctions } from "./../method/properties";
 const router = express.Router();
 const dashboard = require("./../method/dashboard");
-const image = require("./../method/image");
-const defect = require("./../method/defect");
+const files = require("./../method/files");
 import userFunctions from "../method/user";
-import defectsFunctions from "../method/defect";
 import { authMiddleware } from "../middleware/auth";
+import defectsFunctions, { uploadCommentAttachmentsMiddleware } from "../method/defect";
 
 //  ########################################
 //  ############ - USER - ##############
@@ -22,14 +21,19 @@ router.post("/user/getById", userFunctions.getById);
 
 router.post(
   "/upload/image",
-  dashboard.uploadMiddleware,
-  dashboard.handleImageUpload
+  files.uploadMiddleware,
+  files.handleImageUpload
 );
 
 router.post(
   "/upload/images",
-  image.uploadMultipleMiddleware,
-  image.handleMultipleImageUpload
+  files.uploadMultipleMiddleware,
+  files.handleMultipleImageUpload
+);
+
+router.post("/upload/documents",
+  files.uploadDocumentsMiddleware,
+  files.handleMultipleDocumentUpload
 );
 
 //  ########################################
@@ -77,5 +81,10 @@ router.post("/defect/getAllDefects", defectsFunctions.getAllDefects);
 router.post("/defect/updateStatus", defectsFunctions.updateDefectStatus);
 
 router.post("/defect/listByUser", defectsFunctions.listByUser);
+
+// list
+router.get("/defects/:defectId/comments",  defectsFunctions.listDefectComments);
+// add (attachments opcjonalne)
+router.post("/defects/:defectId/comments", uploadCommentAttachmentsMiddleware, defectsFunctions.addDefectComment);
 
 module.exports = router;

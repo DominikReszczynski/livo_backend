@@ -59,11 +59,10 @@ async registration(req: any, res: any) {
   }
 },
 
-// Logowanie
+// 🔐 Logowanie
 async login(req: any, res: any) {
-  console.log("➡️ Login:", req.body);
+  console.log("➡️ Login:", { email: req.body.email, username: req.body.username });
   try {
-    // pozwól logować się przez email LUB username (albo 'login'/'user')
     const { email, username, login, user, password } = req.body;
     const identifier = email || username || login || user;
 
@@ -73,8 +72,12 @@ async login(req: any, res: any) {
 
     const userData = await User.findOne({
       $or: [{ email: identifier }, { username: identifier }],
+    }).select('+password');
+
+    console.log("Found userData:", userData && {
+      _id: userData._id, email: userData.email, username: userData.username
     });
-    console.log("Found userData:", userData);
+
     if (!userData) {
       return res.status(404).send({ success: false, message: "User not found" });
     }
@@ -82,11 +85,10 @@ async login(req: any, res: any) {
     const stored = String(userData.password ?? "");
     let isMatch = false;
 
-    // jeśli wygląda jak bcrypt -> porównaj bcrytem
     if (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$")) {
       isMatch = await bcrypt.compare(password, stored);
     } else {
-      // tryb „legacy” dla środowiska dev/test (żeby nie walić 500)
+      // tryb legacy (dev/test)
       isMatch = password === stored;
     }
 
@@ -100,7 +102,7 @@ async login(req: any, res: any) {
     return res.status(200).send({
       success: true,
       user: { email: userData.email, username: userData.username, _id: userData._id },
-      tokens: { accessToken, refreshToken }, // USTALAMY JEDNOLITY KSZTAŁT
+      tokens: { accessToken, refreshToken },
     });
   } catch (e) {
     console.error("❌ Login error:", e);

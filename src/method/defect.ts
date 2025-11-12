@@ -3,6 +3,23 @@ import mongoose from "mongoose";
 import Defect from "../models/defect";
 import Property from "../models/properties";
 import { normalizeStatus } from "../utils/status";
+import fs from "fs";
+import path from "path";
+import multer from "multer";
+
+const commentsDir = path.join(process.cwd(), "uploads", "comments");
+fs.mkdirSync(commentsDir, { recursive: true });
+
+const commentsStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, commentsDir),
+  filename: (_req, file, cb) =>
+    cb(null, Date.now() + "-" + Math.round(Math.random() * 1e9) + path.extname(file.originalname)),
+});
+
+export const uploadCommentAttachmentsMiddleware = multer({
+  storage: commentsStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+}).array("attachments", 5);
 
 const defectsFunctions = {
   // Dodaj defekt
@@ -64,7 +81,7 @@ async updateDefectStatus(req: any, res: any) {
     const updatedDefect = await Defect.findByIdAndUpdate(
       defectId,
       { status: normalized },
-      { new: true, runValidators: true } // ważne dla enum
+      { new: true, runValidators: true }
     );
 
     if (!updatedDefect) {
@@ -127,6 +144,89 @@ async listByUser(req: ExpressRequest, res: ExpressResponse): Promise<void> {
     }
   },
 
+  // komentarze i załączniki do defektów
+
+  async listDefectComments(req: any, res: any) {
+    try {
+      const defectId =
+        (req.params?.defectId || req.body?.defectId || req.query?.defectId || "").toString();
+
+      if (!mongoose.isValidObjectId(defectId)) {
+        return res
+          .status(400)
+          .send({ success: false, message: "Nieprawidłowe defectId." });
+      }
+
+      const skip = Math.max(0, Number(req.query?.skip ?? 0));
+      const limit = Math.min(200, Math.max(1, Number(req.query?.limit ?? 50)));
+
+      const defect = await Defect.findById(defectId)
+        .select("comments")
+        .populate("comments.author", "username email avatarUrl");
+
+      if (!defect) {
+        return res
+          .status(404)
+          .send({ success: false, message: "Defekt nie znaleziony." });
+      }
+
+      const total = defect.comments.length;
+      const items = defect.comments.slice(skip, skip + limit);
+
+      return res.status(200).send({ success: true, total, items });
+    } catch (e) {
+      console.error("❌ listDefectComments:", e);
+      return res.status(500).send({ success: false });
+    }
+  },
+
+  async addDefectComment(req: any, res: any) {
+  console.log(req.body);
+  try {
+    const defectId = (req.params?.defectId || req.body?.defectId || "").toString();
+    if (!mongoose.isValidObjectId(defectId)) {
+      return res.status(400).send({ success: false, message: "Nieprawidłowe defectId." });
+    }
+
+    const { message, userId } = req.body || {};
+    if (!message || typeof message !== "string") {
+      return res.status(400).send({ success: false, message: "Pole 'message' jest wymagane." });
+    }
+
+    const files = Array.isArray(req.files)
+      ? req.files
+      : req.files ? Object.values(req.files).flat() : [];
+    const attachments: string[] = files.map((f: any) => `/uploads/comments/${f.filename}`);
+
+    const pushDoc: any = {
+      _id: new mongoose.Types.ObjectId(),
+      message,
+      attachments,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    if (userId && mongoose.isValidObjectId(userId)) {
+      pushDoc.author = new mongoose.Types.ObjectId(userId);
+    }
+
+    console.log("Dodawanie komentarza do defektu:", defectId, "przez usera:", userId);
+
+    const updated = await Defect.findOneAndUpdate(
+      { _id: defectId },
+      { $push: { comments: pushDoc } },
+      { new: true, projection: { comments: { $slice: -1 } } }
+    ).populate("comments.author", "username email avatarUrl");
+
+    if (!updated) {
+      return res.status(404).send({ success: false, message: "Defekt nie znaleziony." });
+    }
+
+    return res.status(201).send({ success: true, comment: updated.comments[0] });
+  } catch (e) {
+    console.error("❌ addDefectComment:", e);
+    return res.status(500).send({ success: false });
+  }
+}
 };
 
 export default defectsFunctions;

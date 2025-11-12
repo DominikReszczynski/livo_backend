@@ -28,11 +28,14 @@ const storage = multer.diskStorage({
 export const uploadSingleImage = multer({ storage }).single("image");
 
 export const propertiesFunctions = {
+  
   async addProperty(req: Request, res: Response) {
+    console.log("Dodawanie nieruchomości:", JSON.parse(req.body.property), "plik:", req.file?.filename);
+
     try {
       const propertyData = JSON.parse(req.body.property);
       const imageFilename = req.file?.filename;
-
+console.log("Dodawanie nieruchomości:", propertyData, "plik:", imageFilename);
       if (imageFilename) {
         propertyData.mainImage = imageFilename;
       }

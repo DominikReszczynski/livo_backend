@@ -15,8 +15,8 @@ export interface IProperty extends Document {
   paymentCycle: string;
   rentalStart?: Date;
   rentalEnd?: Date;
+  documents?: string[];
   imageFilenames?: string[];
-  rentalContractFilename?: string;
   notes?: string;
   mainImage?: string;
   pin?: string;
@@ -38,10 +38,10 @@ const propertySchema: Schema = new mongoose.Schema(
     rentAmount: { type: Number, required: true },
     depositAmount: { type: Number, required: true },
     paymentCycle: { type: String, required: true },
-    rentalStart: { type: Date },
-    rentalEnd: { type: Date },
+    rentalStart: { type: Date, required: false },
+    rentalEnd: { type: Date, required: false },
     imageFilenames: [{ type: String, default: [] }],
-    rentalContractFilename: { type: String },
+    documents: [{ type: String, default: [] }],
     notes: { type: String },
     mainImage: {
       type: String,
