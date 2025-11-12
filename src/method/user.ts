@@ -32,10 +32,10 @@ async getById(req: any, res: any): Promise<void> {
 async registration(req: any, res: any) {
   console.log("➡️ Rejestracja użytkownika:", req.body);
   try {
-    const { email, username, password } = req.body;
+    const { email, username, password, phone } = req.body;
 
-    if (!email || !username || !password) {
-      return res.status(400).send({ success: false, message: "Missing email/username/password" });
+    if (!email || !username || !password || !phone) {
+      return res.status(400).send({ success: false, message: "Missing email/username/password/phone" });
     }
 
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
@@ -46,12 +46,12 @@ async registration(req: any, res: any) {
     // ZAWSZE hashuj
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ email, username, password: hashedPassword });
+    const newUser = new User({ email, username, password: hashedPassword, phone });
     await newUser.save();
 
     return res.status(201).send({
       success: true,
-      user: { _id: newUser._id, email: newUser.email, username: newUser.username },
+      user: { _id: newUser._id, email: newUser.email, username: newUser.username, phone: newUser.phone },
     });
   } catch (e) {
     console.error("❌ Registration error:", e);
@@ -101,11 +101,34 @@ async login(req: any, res: any) {
 
     return res.status(200).send({
       success: true,
-      user: { email: userData.email, username: userData.username, _id: userData._id },
+      user: { email: userData.email, username: userData.username, phone: userData.phone , _id: userData._id },
       tokens: { accessToken, refreshToken },
     });
   } catch (e) {
     console.error("❌ Login error:", e);
+    return res.status(500).send({ success: false });
+  }
+},
+async updateProfile(req: any, res: any) {
+  try {
+    const uid = req.user?._id || req.body?.userId; // dev fallback
+    if (!uid) return res.status(401).send({ success: false, message: "Unauthorized" });
+
+    const { username, email, phone } = req.body || {};
+    if (!username || !email) {
+      return res.status(400).send({ success: false, message: "Brak wymaganych pól" });
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      uid,
+      { $set: { username, email, phone: phone ?? null } },
+      { new: true, runValidators: true, context: 'query' }
+    ).lean();
+
+    if (!updated) return res.status(404).send({ success: false, message: "User not found" });
+    return res.status(200).send({ success: true, user: updated });
+  } catch (e) {
+    console.error("updateProfile error:", e);
     return res.status(500).send({ success: false });
   }
 }

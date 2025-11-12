@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-
+import fs2 from "fs/promises";
 // Konfiguracja uploadu
 const uploadDir = "./uploads";
 if (!fs.existsSync(uploadDir)) {
@@ -26,6 +26,44 @@ const storage = multer.diskStorage({
 });
 
 export const uploadSingleImage = multer({ storage }).single("image");
+
+// Bezpiecznie zamień to co masz w DB na ścieżkę na dysku
+function toAbsUploadPath(p: any): string | null {
+  if (!p) return null;
+  if (typeof p !== "string") return null;
+
+  // Jeśli zapisujesz pełne URL-e -> weź tylko ścieżkę
+  let rel = p.startsWith("http") ? new URL(p).pathname : p;
+
+  // utnij wiodący "/"
+  if (rel.startsWith("/")) rel = rel.slice(1);
+
+  // jeśli nie ma prefiksu "uploads/", dodaj
+  if (!rel.startsWith("uploads/")) rel = path.join("uploads", rel);
+
+  return path.join(process.cwd(), rel);
+}
+
+async function removeFilesIfExist(paths: any[]) {
+  for (const raw of paths) {
+    const candidate =
+      typeof raw === "string"
+        ? raw
+        : (raw?.path ?? raw?.url ?? raw?.filename ?? null);
+
+    const abs = toAbsUploadPath(candidate);
+    if (!abs) continue;
+
+    try {
+      await fs2.unlink(abs);
+console.log("Usunięto plik:", abs);
+    } catch (e: any) {
+      if (e?.code !== "ENOENT") {
+        console.warn("⚠️ Nie udało się usunąć pliku:", abs, e?.message);
+      }
+    }
+  }
+}
 
 export const propertiesFunctions = {
   
@@ -113,39 +151,90 @@ console.log("Dodawanie nieruchomości:", propertyData, "plik:", imageFilename);
       });
     }
   },
+
   async removePin(req: Request, res: Response): Promise<void> {
     try {
       const propertyID = req.body.propertyID;
 
-      if (!propertyID) {
+      if (!propertyID || !mongoose.isValidObjectId(propertyID)) {
         res.status(400).send({
           success: false,
-          message: "Brakuje propertyID w żądaniu.",
+          message: "Brakuje lub niepoprawne propertyID w żądaniu.",
         });
+        return;
       }
 
-      const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
-      const property = await Property.findById(propertyObjectId);
-
+      const property = await Property.findById(propertyID);
       if (!property) {
         res.status(404).send({
           success: false,
           message: "Nie znaleziono nieruchomości o podanym ID.",
         });
-      } else {
-        property.pin = undefined;
-        await property.save();
+        return;
       }
+
+      const images = Array.isArray(property.imageFilenames)
+        ? property.imageFilenames
+        : [];
+      const documents = Array.isArray(property.documents)
+        ? property.documents
+        : [];
+
+      await removeFilesIfExist(images);
+      await removeFilesIfExist(documents);
+
+      await Property.updateOne(
+        { _id: property._id },
+        {
+          $unset: { pin: "", tenantId: "" },
+          $set: { imageFilenames: [], documents: [] },
+        }
+      );
 
       res.status(200).send({ success: true });
     } catch (error) {
-      console.error("Błąd podczas pobierania mieszkań właściciela:", error);
+      console.error("Błąd podczas usuwania PIN-a:", error);
       res.status(500).send({
         success: false,
         message: "Wystąpił błąd po stronie serwera.",
       });
     }
   },
+
+  // async removePin(req: Request, res: Response): Promise<void> {
+  //   try {
+  //     const propertyID = req.body.propertyID;
+
+  //     if (!propertyID) {
+  //       res.status(400).send({
+  //         success: false,
+  //         message: "Brakuje propertyID w żądaniu.",
+  //       });
+  //     }
+
+  //     const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
+  //     const property = await Property.findById(propertyObjectId);
+
+  //     if (!property) {
+  //       res.status(404).send({
+  //         success: false,
+  //         message: "Nie znaleziono nieruchomości o podanym ID.",
+  //       });
+  //     } else {
+  //       property.pin = undefined;
+  //       await property.save();
+  //     }
+
+  //     res.status(200).send({ success: true });
+  //   } catch (error) {
+  //     console.error("Błąd podczas pobierania mieszkań właściciela:", error);
+  //     res.status(500).send({
+  //       success: false,
+  //       message: "Wystąpił błąd po stronie serwera.",
+  //     });
+  //   }
+  // },
+
   async addTenantToProperty(req: Request, res: Response): Promise<void> {
   try {
     const { propertyID, tenantID } = req.body;

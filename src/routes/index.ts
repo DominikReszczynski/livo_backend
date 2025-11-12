@@ -14,6 +14,7 @@ import defectsFunctions, { uploadCommentAttachmentsMiddleware } from "../method/
 router.post("/user/login", userFunctions.login);
 router.post("/user/registration", userFunctions.registration);
 router.post("/user/getById", userFunctions.getById);
+router.post("/user/updateProfile", userFunctions.updateProfile);
 
 //  ########################################
 //  ############ - IMAGE - ##############
