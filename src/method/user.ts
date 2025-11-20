@@ -15,7 +15,7 @@ async getById(req: any, res: any): Promise<void> {
         return;
       }
 
-      const user = await User.findById(id).select("_id email username phone");
+      const user = await User.findById(id).select("_id email username phone firstname secondname");
       if (!user) {
         res.status(404).send({ success: false, message: "Użytkownik nie istnieje." });
         return;
@@ -32,9 +32,9 @@ async getById(req: any, res: any): Promise<void> {
 async registration(req: any, res: any) {
   console.log("➡️ Rejestracja użytkownika:", req.body);
   try {
-    const { email, username, password, phone } = req.body;
+    const { email, username, password, phone, firstname, secondname } = req.body;
 
-    if (!email || !username || !password || !phone) {
+    if (!email || !username || !password || !firstname || !secondname) {
       return res.status(400).send({ success: false, message: "Missing email/username/password/phone" });
     }
 
@@ -46,12 +46,12 @@ async registration(req: any, res: any) {
     // ZAWSZE hashuj
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ email, username, password: hashedPassword, phone });
+    const newUser = new User({ email, username, password: hashedPassword, phone, firstname, secondname });
     await newUser.save();
 
     return res.status(201).send({
       success: true,
-      user: { _id: newUser._id, email: newUser.email, username: newUser.username, phone: newUser.phone },
+      user: { _id: newUser._id, email: newUser.email, username: newUser.username, phone: newUser.phone, firstname:newUser.firstname, secondname: newUser.secondname },
     });
   } catch (e) {
     console.error("❌ Registration error:", e);
@@ -100,10 +100,17 @@ async login(req: any, res: any) {
     const refreshToken = signRefreshToken(userData);
 
     return res.status(200).send({
-      success: true,
-      user: { email: userData.email, username: userData.username, phone: userData.phone , _id: userData._id },
-      tokens: { accessToken, refreshToken },
-    });
+  success: true,
+  user: {
+    _id: userData._id,
+    email: userData.email,
+    username: userData.username,
+    firstname: userData.firstname,
+    secondname: userData.secondname,
+    phone: userData.phone,
+  },
+  tokens: { accessToken, refreshToken },
+});
   } catch (e) {
     console.error("❌ Login error:", e);
     return res.status(500).send({ success: false });

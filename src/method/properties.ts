@@ -90,6 +90,93 @@ console.log("Dodawanie nieruchomości:", propertyData, "plik:", imageFilename);
     }
   },
 
+  async updateProperty(req: Request, res: Response): Promise<void> {
+  console.log("Aktualizacja nieruchomości:", req.body);
+
+  try {
+    const propertyData = JSON.parse(req.body.property);
+    const propertyId = propertyData.id || propertyData._id;
+
+    if (!propertyId) {
+      res.status(400).send({
+        success: false,
+        message: "Brak ID nieruchomości do zaktualizowania.",
+      });
+      return;
+    }
+
+    const existingProperty = await Property.findById(propertyId);
+    if (!existingProperty) {
+      res.status(404).send({
+        success: false,
+        message: "Nie znaleziono nieruchomości o podanym ID.",
+      });
+      return;
+    }
+
+    const newImage = req.file?.filename;
+    if (newImage) {
+      existingProperty.mainImage = newImage;
+    }
+
+    existingProperty.name = propertyData.name;
+    existingProperty.location = propertyData.location;
+    existingProperty.size = propertyData.size;
+    existingProperty.rooms = propertyData.rooms;
+    existingProperty.floor = propertyData.floor;
+    existingProperty.status = propertyData.status;
+    existingProperty.features = propertyData.features || [];
+    existingProperty.rentAmount = propertyData.rentAmount;
+    existingProperty.depositAmount = propertyData.depositAmount;
+    existingProperty.paymentCycle = propertyData.paymentCycle;
+    existingProperty.rentalStart = propertyData.rentalStart
+      ? new Date(propertyData.rentalStart)
+      : undefined;
+    existingProperty.rentalEnd = propertyData.rentalEnd
+      ? new Date(propertyData.rentalEnd)
+      : undefined;
+    existingProperty.notes = propertyData.notes ?? null;
+
+    await existingProperty.save();
+
+    console.log("✅ Zaktualizowano nieruchomość:", existingProperty._id);
+
+    res.status(200).send({
+      success: true,
+      property: existingProperty,
+      message: "Nieruchomość została zaktualizowana.",
+    });
+  } catch (error) {
+    console.error("❌ Błąd podczas aktualizacji nieruchomości:", error);
+    res.status(500).send({
+      success: false,
+      message: "Błąd serwera podczas aktualizacji nieruchomości.",
+    });
+  }
+},
+
+async deleteProperty(req: Request, res: Response): Promise<void> {
+  try {
+    const { propertyId } = req.body;
+    if (!propertyId || !mongoose.isValidObjectId(propertyId)) {
+      res.status(400).send({ success: false, message: "Brak lub błędne ID." });
+      return;
+    }
+
+    const property = await Property.findByIdAndDelete(propertyId);
+    if (!property) {
+      res.status(404).send({ success: false, message: "Nie znaleziono nieruchomości." });
+      return;
+    }
+
+    // (opcjonalnie usuń pliki z dysku)
+    res.status(200).send({ success: true });
+  } catch (e) {
+    console.error("❌ Błąd podczas usuwania nieruchomości:", e);
+    res.status(500).send({ success: false, message: "Błąd serwera." });
+  }
+},
+
   async getAllPropertiesByOwner(req: Request, res: Response): Promise<void> {
     try {
       // console.log("Pobieranie mieszkań właściciela");
@@ -237,13 +324,22 @@ console.log("Dodawanie nieruchomości:", propertyData, "plik:", imageFilename);
 
   async addTenantToProperty(req: Request, res: Response): Promise<void> {
   try {
-    const { propertyID, tenantID } = req.body;
+    const { propertyID, tenantID, rentalStart, rentalEnd } = req.body;
 
     // 🔹 Walidacja danych wejściowych
     if (!propertyID || !tenantID) {
       res.status(400).send({
         success: false,
-        message: "Brakuje danych w żądaniu.",
+        message: "Brakuje danych w żądaniu (propertyID lub tenantID).",
+      });
+      return;
+    }
+
+    // 🔹 Walidacja dat
+    if (!rentalStart || !rentalEnd) {
+      res.status(400).send({
+        success: false,
+        message: "Brakuje daty rozpoczęcia lub zakończenia wynajmu.",
       });
       return;
     }
@@ -251,7 +347,6 @@ console.log("Dodawanie nieruchomości:", propertyData, "plik:", imageFilename);
     const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
     const property = await Property.findById(propertyObjectId);
 
-    // 🔹 Sprawdź, czy mieszkanie istnieje
     if (!property) {
       res.status(404).send({
         success: false,
@@ -269,11 +364,11 @@ console.log("Dodawanie nieruchomości:", propertyData, "plik:", imageFilename);
       return;
     }
 
-    // 🔹 Ustaw najemcę
+    // 🔹 Ustaw dane najmu
     property.tenantId = new mongoose.Types.ObjectId(tenantID);
-
-    // 🔹 Zmień status na "wynajęte"
     property.status = "wynajęte";
+    property.rentalStart = new Date(rentalStart);
+    property.rentalEnd = new Date(rentalEnd);
 
     // 🔹 Zapisz zmiany
     await property.save();
@@ -281,7 +376,7 @@ console.log("Dodawanie nieruchomości:", propertyData, "plik:", imageFilename);
     res.status(200).send({
       success: true,
       message: "Najemca został dodany, status zmieniono na 'wynajęte'.",
-      property: property,
+      property,
     });
   } catch (error) {
     console.error("❌ Błąd podczas dodawania najemcy do nieruchomości:", error);
@@ -291,6 +386,63 @@ console.log("Dodawanie nieruchomości:", propertyData, "plik:", imageFilename);
     });
   }
 },
+
+//   async addTenantToProperty(req: Request, res: Response): Promise<void> {
+//   try {
+//     const { propertyID, tenantID } = req.body;
+
+//     // 🔹 Walidacja danych wejściowych
+//     if (!propertyID || !tenantID) {
+//       res.status(400).send({
+//         success: false,
+//         message: "Brakuje danych w żądaniu.",
+//       });
+//       return;
+//     }
+
+//     const propertyObjectId = new mongoose.Types.ObjectId(propertyID);
+//     const property = await Property.findById(propertyObjectId);
+
+//     // 🔹 Sprawdź, czy mieszkanie istnieje
+//     if (!property) {
+//       res.status(404).send({
+//         success: false,
+//         message: "Nie znaleziono nieruchomości o podanym ID.",
+//       });
+//       return;
+//     }
+
+//     // 🔹 Właściciel nie może być swoim własnym najemcą
+//     if (property.ownerId.toString() === tenantID) {
+//       res.status(400).send({
+//         success: false,
+//         message: "Id właściciela i najemcy są takie same.",
+//       });
+//       return;
+//     }
+
+//     // 🔹 Ustaw najemcę
+//     property.tenantId = new mongoose.Types.ObjectId(tenantID);
+
+//     // 🔹 Zmień status na "wynajęte"
+//     property.status = "wynajęte";
+
+//     // 🔹 Zapisz zmiany
+//     await property.save();
+
+//     res.status(200).send({
+//       success: true,
+//       message: "Najemca został dodany, status zmieniono na 'wynajęte'.",
+//       property: property,
+//     });
+//   } catch (error) {
+//     console.error("❌ Błąd podczas dodawania najemcy do nieruchomości:", error);
+//     res.status(500).send({
+//       success: false,
+//       message: "Wystąpił błąd po stronie serwera.",
+//     });
+//   }
+// },
 
   async getAllPropertiesByTenant(req: Request, res: Response): Promise<void> {
     try {

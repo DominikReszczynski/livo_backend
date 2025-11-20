@@ -14,7 +14,7 @@ import defectsFunctions, { uploadCommentAttachmentsMiddleware } from "../method/
 router.post("/user/login", userFunctions.login);
 router.post("/user/registration", userFunctions.registration);
 router.post("/user/getById", userFunctions.getById);
-router.post("/user/updateProfile", userFunctions.updateProfile);
+router.post("/user/updateProfile", authMiddleware, userFunctions.updateProfile);
 
 //  ########################################
 //  ############ - IMAGE - ##############
@@ -33,6 +33,7 @@ router.post(
 );
 
 router.post("/upload/documents",
+  authMiddleware,
   files.uploadDocumentsMiddleware,
   files.handleMultipleDocumentUpload
 );
@@ -49,25 +50,43 @@ router.post(
 );
 
 router.post(
+  "/property/update",
+  authMiddleware,
+  uploadSingleImage,
+  propertiesFunctions.updateProperty
+);
+
+router.post(
+  "/property/delete",
+  authMiddleware,
+  propertiesFunctions.deleteProperty
+);
+
+router.post(
+  
   "/property/getAllByOwner",
+  authMiddleware,
   propertiesFunctions.getAllPropertiesByOwner
 );
-router.post("/property/setPin", propertiesFunctions.setPin);
+router.post("/property/setPin", authMiddleware, propertiesFunctions.setPin);
 
-router.post("/property/removePin", propertiesFunctions.removePin);
+router.post("/property/removePin", authMiddleware, propertiesFunctions.removePin);
 
 router.post(
   "/property/addTenantToProperty",
+  authMiddleware,
   propertiesFunctions.addTenantToProperty
 );
 
 router.post(
   "/property/getAllByTenant",
+  authMiddleware,
   propertiesFunctions.getAllPropertiesByTenant
 );
 
 router.post(
   "/property/addRentalImages",
+  authMiddleware,
   propertiesFunctions.addRentalImages
 );
 
@@ -75,17 +94,17 @@ router.post(
 //  ############# - DEFECT - ###############
 //  ########################################
 
-router.post("/defect/addDefect", defectsFunctions.addDefect);
+router.post("/defect/addDefect", authMiddleware, defectsFunctions.addDefect);
 
-router.post("/defect/getAllDefects", defectsFunctions.getAllDefects);
+router.post("/defect/getAllDefects", authMiddleware, defectsFunctions.getAllDefects);
 
-router.post("/defect/updateStatus", defectsFunctions.updateDefectStatus);
+router.post("/defect/updateStatus",authMiddleware, defectsFunctions.updateDefectStatus);
 
-router.post("/defect/listByUser", defectsFunctions.listByUser);
+router.post("/defect/listByUser", authMiddleware, defectsFunctions.listByUser);
 
 // list
-router.get("/defects/:defectId/comments",  defectsFunctions.listDefectComments);
+router.get("/defects/:defectId/comments",  authMiddleware, defectsFunctions.listDefectComments);
 // add (attachments opcjonalne)
-router.post("/defects/:defectId/comments", uploadCommentAttachmentsMiddleware, defectsFunctions.addDefectComment);
+router.post("/defects/:defectId/comments", authMiddleware, uploadCommentAttachmentsMiddleware, defectsFunctions.addDefectComment);
 
 module.exports = router;
